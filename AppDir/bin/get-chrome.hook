@@ -77,10 +77,15 @@ elif [ -f "$APPDIR"/.chrome-link ]; then
 	fi
 fi
 
-if [ "$_download_needed" = 1 ] && ! _get_chrome; then
-	notify -de "Chrome download failed!"
-	>&2 echo "Check updating the AppImage or set CHROME_DOWNLOAD_LINK if $_chrome_url no longer works"
-	exit 1
+if [ "$_download_needed" = 1 ]; then
+	if ! notify -dq "Because Google Chrome's license does not allow redistribution, we need to download the binary from '$_appimage_chrome_ver'. Do you wish to proceed with the download?"; then
+		exit 1
+	fi
+	if ! _get_chrome; then
+		notify -de "Chrome download failed!"
+		>&2 echo "Check updating the AppImage or set CHROME_DOWNLOAD_LINK if $_chrome_url no longer works"
+		exit 1
+	fi
 fi
 
 # switch to the extracted chrome directory as the new "AppDir", AppRun.sh
