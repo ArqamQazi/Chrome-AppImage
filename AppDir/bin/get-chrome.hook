@@ -79,7 +79,8 @@ fi
 
 if [ "$_download_needed" = 1 ]; then
 	if ! notify -dq "Because Google Chrome's license does not allow redistribution, we need to download the binary from '$_appimage_chrome_ver'. Do you wish to proceed with the download?"; then
-		exit 1
+		# do not fail if in github actions
+		[ -n "$GITHUB_REPOSITORY" ] || exit 1
 	fi
 	if ! _get_chrome; then
 		notify -de "Chrome download failed!"
