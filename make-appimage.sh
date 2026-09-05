@@ -14,8 +14,19 @@ export STRACE_FLAGS='google.com --no-sandbox'
 # Deploy dependencies
 quick-sharun \
 	./AppDir/bin/* \
+	/usr/bin/ar \
+	/usr/bin/tar \
+	/usr/bin/xz \
 	/usr/lib/libcloudproviders* \
 	/usr/lib/libgtk-3.so*
+
+# Remove the proprietary blobs since they cannot be redistributed,
+# they are downloaded and extracted to $DATADIR at runtime instead
+while IFS= read -r blob; do
+	find ./AppDir/bin ./AppDir/shared/bin \
+	  -name "$blob" -exec rm -rf {} + 2>/dev/null || :
+done < ./AppDir/.chrome-files
+rm -rf ./AppDir/lib/__w
 
 # Additional changes can be done in between here
 

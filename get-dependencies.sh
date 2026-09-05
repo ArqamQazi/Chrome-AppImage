@@ -52,6 +52,10 @@ ar xvf /tmp/temp.deb
 tar xvf ./data.tar.xz
 tar -xf ./control.tar.* ./control -O | awk -F': |-' '/^Version:/{print $2; exit}' > ~/version
 
+# Pin the exact version that was downloaded, the pool URL allows fetching
+# that exact .deb again at runtime (and downgrades if the AppImage does)
+CHROME_URL="https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_$(cat ~/version)-1_${deb_arch}.deb"
+
 mkdir -p ./AppDir/bin
 mv -v ./opt/google/chrome/* ./AppDir/bin
 cp -v ./usr/share/applications/google-chrome.desktop ./AppDir
@@ -63,6 +67,10 @@ ln -sf chrome ./AppDir/bin/google-chrome-stable
 # we need to remove this because chrome otherwise dlopen libQt5Core on the host
 # when present, we can only bunle libqt6 or libqt5 but not both
 rm -f ./AppDir/bin/libqt5_shim.so
+
+# Chrome cannot be redistributed, save the download link and download at runtime
+echo "$CHROME_URL" > ./AppDir/.chrome-link
+find ./AppDir/bin -mindepth 1 -maxdepth 1 ! -name '*.hook' -printf '%f\n' > ./AppDir/.chrome-files
 
 # if you also have to make nightly releases check for DEVEL_RELEASE = 1
 #

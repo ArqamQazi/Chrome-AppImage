@@ -1,0 +1,95 @@
+#!/bin/sh
+
+# Chrome's binary cannot be redistributed, so instead of bundling it the
+# AppImage downloads the .deb from Google on first run and extracts it to
+# $DATADIR, replicating the AppDir layout before launch
+
+set -e
+
+_chrome_dir=$DATADIR/Chrome-AppImage
+_newdir=$_chrome_dir.tmp.$$
+_chrome_bin=$_chrome_dir/bin/chrome
+_tmpdir=${TMPDIR:-/tmp}/chrome-extract-$$
+
+_get_chrome() {
+	if [ -z "$CHROME_DOWNLOAD_LINK" ]; then
+		read -r _chrome_url < "$APPDIR"/.chrome-link
+	else
+		_chrome_url=$CHROME_DOWNLOAD_LINK
+	fi
+
+	rm -rf "$_tmpdir"
+	mkdir -p "$_tmpdir"
+
+	download "$_tmpdir"/chrome.deb "$_chrome_url" || return 1
+	( cd "$_tmpdir" && ar x chrome.deb && tar xf data.tar.* ) || return 1
+
+	# extract the chrome files into the bin dir of the new "AppDir"
+	rm -rf "$_newdir"
+	mkdir -p "$_newdir"/shared/bin
+	cp -r "$_tmpdir"/opt/google/chrome/. "$_newdir"/bin/ || return 1
+
+	# remove the qt5 shim so chrome does not dlopen Qt5 libraries from the
+	# host, only Qt6 is bundled in the AppImage
+	rm -f "$_newdir"/bin/libqt5_shim.so
+
+	# recreate AppDir structure
+	cp -f "$APPDIR"/sharun "$_newdir"/sharun || return 1
+	for bin in "$_newdir"/bin/*; do
+		[ -f "$bin" ] || continue
+		if [ -x "$bin" ] && head -c 4 "$bin" | grep -q ELF; then
+			mv -f "$bin" "$_newdir"/shared/bin/ || return 1
+			# workaround a uutils bug where ln -f fails if the destination
+			# already exists (this garbage shipped in Ubuntu 25.10)
+			# https://github.com/pkgforge-dev/xenia-canary-AppImage/issues/14
+			rm -f "$bin"
+			ln -f "$_newdir"/sharun "$bin" || return 1
+		fi
+	done
+
+	ln -sf chrome "$_newdir"/bin/google-chrome-stable
+
+	ln -sfn "$APPDIR"/lib   "$_newdir"/lib
+	ln -sfn "$APPDIR"/etc   "$_newdir"/etc
+	ln -sfn "$APPDIR"/share "$_newdir"/share
+
+	cp -f "$APPDIR"/.env     "$_newdir"/.env
+	cp -f "$APPDIR"/.preload "$_newdir"/.preload
+
+	# record which version was downloaded so updates can be detected by
+	# comparing this file with $APPDIR/.chrome-link on the next launch
+	cp -f "$APPDIR"/.chrome-link "$_newdir"/.chrome-link
+
+	rm -rf "$_chrome_dir"
+	mv "$_newdir" "$_chrome_dir" || return 1
+
+	rm -rf "$_tmpdir"
+}
+
+_download_needed=0
+if [ ! -f "$_chrome_bin" ]; then
+	_download_needed=1
+elif [ -f "$APPDIR"/.chrome-link ]; then
+	read -r _appimage_chrome_ver < "$APPDIR"/.chrome-link
+	read -r _downloaded_chrome_ver < "$_chrome_dir"/.chrome-link || :
+	if [ "$_downloaded_chrome_ver" != "$_appimage_chrome_ver" ]; then
+		_download_needed=1
+	fi
+fi
+
+if [ "$_download_needed" = 1 ]; then
+	if ! notify -dq "Because Google Chrome's license does not allow redistribution, we need to download the binary from '$_appimage_chrome_ver'. Do you wish to proceed with the download?"; then
+		# do not fail if in github actions
+		[ -n "$GITHUB_REPOSITORY" ] || exit 1
+	fi
+	if ! _get_chrome; then
+		notify -de "Chrome download failed!"
+		>&2 echo "Check updating the AppImage or set CHROME_DOWNLOAD_LINK if $_chrome_url no longer works"
+		exit 1
+	fi
+fi
+
+# switch to the extracted chrome directory as the new "AppDir", AppRun.sh
+# will then launch chrome from it as usual
+export APPDIR="$_chrome_dir"
+export SHARUN_DIR="$_chrome_dir"
