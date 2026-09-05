@@ -54,14 +54,12 @@ cd /tmp/chrome
 ar xvf ./chrome.deb
 tar xvf ./data.tar.xz
 
-mkdir -p /usr/share/applications /usr/share/icons/hicolor/256x256/apps
-cp -v ./usr/share/applications/google-chrome.desktop /usr/share/applications/google-chrome.desktop
-cp -v ./opt/google/chrome/product_logo_256.png /usr/share/icons/hicolor/256x256/apps/google-chrome.png
-
 tar -xf ./control.tar.* ./control -O | awk -F': |-' '/^Version:/{print $2; exit}' > ~/version
 
 cd -
 mv -v /tmp/chrome/opt/google/chrome/* ./AppDir/bin
+cp -v /tmp/chrome/usr/share/applications/google-chrome.desktop ./AppDir/
+cp -v ./AppDir/bin/product_logo_256.png ./AppDir/google-chrome.png
 rm -rf /tmp/chrome
 
 # Symlink so the desktop entry's Exec command (google-chrome-stable) resolves to chrome
