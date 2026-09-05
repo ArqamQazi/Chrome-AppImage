@@ -28,7 +28,7 @@ pacman -Syu --noconfirm \
 	zsync
 
 if [ "$ARCH" = 'x86_64' ]; then
-		pacman -Syu --noconfirm libva-intel-driver
+	pacman -Syu --noconfirm libva-intel-driver
 fi
 
 echo "Installing debloated packages..."
@@ -47,20 +47,15 @@ esac
 
 CHROME_URL="https://dl.google.com/linux/direct/google-chrome-stable_current_${deb_arch}.deb"
 
-mkdir -p ./AppDir/bin /tmp/chrome
-wget --retry-connrefused --tries=30 "$CHROME_URL" -O /tmp/chrome/chrome.deb
-
-cd /tmp/chrome
-ar xvf ./chrome.deb
+wget --retry-connrefused --tries=30 "$CHROME_URL" -O /tmp/temp.deb
+ar xvf /tmp/temp.deb
 tar xvf ./data.tar.xz
-
 tar -xf ./control.tar.* ./control -O | awk -F': |-' '/^Version:/{print $2; exit}' > ~/version
 
-cd -
-mv -v /tmp/chrome/opt/google/chrome/* ./AppDir/bin
-cp -v /tmp/chrome/usr/share/applications/google-chrome.desktop ./AppDir/
+mkdir -p ./AppDir/bin
+mv -v ./opt/google/chrome/* ./AppDir/bin
+cp -v ./usr/share/applications/google-chrome.desktop ./AppDir
 cp -v ./AppDir/bin/product_logo_256.png ./AppDir/google-chrome.png
-rm -rf /tmp/chrome
 
 # Symlink so the desktop entry's Exec command (google-chrome-stable) resolves to chrome
 ln -sf chrome ./AppDir/bin/google-chrome-stable
@@ -68,8 +63,6 @@ ln -sf chrome ./AppDir/bin/google-chrome-stable
 # we need to remove this because chrome otherwise dlopen libQt5Core on the host
 # when present, we can only bunle libqt6 or libqt5 but not both
 rm -f ./AppDir/bin/libqt5_shim.so
-
-chmod 755 .
 
 # if you also have to make nightly releases check for DEVEL_RELEASE = 1
 #
